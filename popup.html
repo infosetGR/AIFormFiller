@@ -58,6 +58,111 @@
       color: #666;
       font-style: italic;
     }
+    .upload-section {
+      margin: 15px 0;
+      padding: 15px;
+      border: 2px dashed #ddd;
+      border-radius: 8px;
+      text-align: center;
+      background-color: #fafafa;
+    }
+    .upload-section.dragover {
+      border-color: #4CAF50;
+      background-color: #f1f8e9;
+    }
+    .file-input {
+      margin: 10px 0;
+    }
+    .file-input input[type="file"] {
+      display: none;
+    }
+    .file-input label {
+      display: inline-block;
+      padding: 8px 16px;
+      background-color: #2196F3;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .file-input label:hover {
+      background-color: #1976D2;
+    }
+    .uploaded-files {
+      margin-top: 10px;
+      text-align: left;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+    }
+    .file-item:last-child {
+      border-bottom: none;
+    }
+    .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 10px;
+    }
+    .delete-file {
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .delete-file:hover {
+      background: #d32f2f;
+    }
+    .knowledge-status {
+      margin: 10px 0;
+      font-size: 12px;
+      color: #666;
+    }
+    .clear-library-btn {
+      background: linear-gradient(135deg, #ff4757, #ff3742);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(255, 71, 87, 0.3);
+    }
+    .clear-library-btn:hover {
+      background: linear-gradient(135deg, #ff3742, #ff2f3a);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(255, 71, 87, 0.4);
+    }
+    .clear-library-btn:active {
+      transform: translateY(0);
+    }
+    .clear-icon {
+      font-size: 14px;
+    }
+    .library-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .stats-info {
+      font-size: 11px;
+      color: #888;
+    }
   </style>
 </head>
 <body>
@@ -66,6 +171,25 @@
   <div class="button-group">
     <button id="readPage" class="secondary">📄 Read Page</button>
     <button id="fillForm">🤖 Fill Form</button>
+  </div>
+
+  <div class="upload-section" id="uploadSection">
+    <div>📂 Upload Documents for AI Knowledge</div>
+    <div class="file-input">
+      <label for="fileInput">Choose Files</label>
+      <input type="file" id="fileInput" multiple accept=".txt,.pdf,.docx,.md,.json,.csv">
+    </div>
+    <div style="font-size: 11px; color: #888; margin-top: 5px;">
+      Supports: TXT, PDF, DOCX, MD, JSON, CSV
+    </div>
+    <div class="uploaded-files" id="uploadedFiles"></div>
+    <div class="library-stats">
+      <div class="knowledge-status" id="knowledgeStatus"></div>
+      <button class="clear-library-btn" id="clearLibrary" title="Clear all uploaded files and embeddings">
+        <span class="clear-icon">📚🗑️</span>
+        <span>Clear Library</span>
+      </button>
+    </div>
   </div>
 
   <div id="status" class="status"></div>
