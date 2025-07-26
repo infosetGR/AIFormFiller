@@ -1,6 +1,5 @@
 // Gemini AI Service for form value predictions
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
-
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
 export class GeminiService {
   constructor(apiKey) {
     this.apiKey = apiKey;

@@ -3,7 +3,39 @@ import { EmbeddingService } from './services/embedding-service.js';
 import { GeminiService } from './services/gemini-service.js';
 import { FileService } from './services/file-service.js';
 
-const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your API key
+// Get the API key from Chrome extension environment variables (chrome.storage)
+let API_KEY = null;
+
+// Load API key from chrome.storage.local (set via extension options or install)
+async function loadApiKey() {
+  try {
+    const result = await chrome.storage.local.get(['API_KEY']);
+    API_KEY = result.API_KEY || null;
+    
+    if (!API_KEY) {
+      console.warn('⚠️ No API key configured. Please set your API key in extension settings.');
+      return null;
+    } else {
+      console.log('✅ Custom API key loaded successfully');
+      return API_KEY;
+    }
+  } catch (error) {
+    console.error('❌ Error loading API key from storage:', error);
+    API_KEY = null;
+    return null;
+  }
+}
+
+// Initialize API key on startup
+loadApiKey();
+
+// Listen for storage changes to update API key
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && changes.API_KEY) {
+    console.log('🔄 API key changed in storage, updating...');
+    handleApiKeyUpdate();
+  }
+});
 
 // Initialize services
 let embeddingService = null;
@@ -12,10 +44,19 @@ let fileService = null;
 
 // Initialize services
 async function initializeServices() {
+  if (!API_KEY) {
+    await loadApiKey();
+  }
+  
+  if (!API_KEY) {
+    throw new Error('No API key configured. Please set your Gemini API key in extension settings.');
+  }
+  
   if (!embeddingService || !geminiService || !fileService) {
     embeddingService = new EmbeddingService(API_KEY);
     geminiService = new GeminiService(API_KEY);
     fileService = new FileService(embeddingService);
+    console.log('🔧 Services initialized with API key');
   }
 }
 
@@ -64,12 +105,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Required for async response
   } else if (request.action === 'searchKnowledge') {
-    handleKnowledgeSearch(request.query, request.fieldType, request.fieldTitle, sender.tab?.id)
+    handleKnowledgeSearch(request.query, request.fieldType, request.fieldTitle, request.customInstructions, sender.tab?.id)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Required for async response
+  } else if (request.action === 'apiKeyUpdated') {
+    // Reload API key and reinitialize services
+    handleApiKeyUpdate();
   }
 });
+
+// Handle API key updates
+async function handleApiKeyUpdate() {
+  console.log('🔄 API key updated, reloading...');
+  
+  try {
+    const result = await chrome.storage.local.get(['API_KEY']);
+    const newApiKey = result.API_KEY || null;
+    
+    if (newApiKey !== API_KEY) {
+      API_KEY = newApiKey;
+      
+      // Reset services to force reinitialization with new API key
+      embeddingService = null;
+      geminiService = null;
+      fileService = null;
+      
+      console.log('✅ API key updated and services reset');
+    }
+  } catch (error) {
+    console.error('❌ Error handling API key update:', error);
+  }
+}
 
 async function handleFileUpload(fileData, tabId) {
   console.group('📤 Handling File Upload');
@@ -97,30 +164,37 @@ async function handleFileUpload(fileData, tabId) {
   } catch (error) {
     console.error('❌ Error handling file upload:', error);
     if (tabId) await setNormalIcon(tabId);
+    
+    // Check if error is due to missing API key
+    if (error.message.includes('No API key configured')) {
+      throw new Error('Please configure your Gemini API key in extension settings before uploading files.');
+    }
+    
     throw error;
   } finally {
     console.groupEnd();
   }
 }
 
-async function handleKnowledgeSearch(query, fieldType, fieldTitle, tabId) {
+async function handleKnowledgeSearch(query, fieldType, fieldTitle, customInstructions, tabId) {
   console.group('🔍 Handling Knowledge Search');
   console.log('🔎 Query:', query);
   console.log('📝 Field Type:', fieldType);
   console.log('🏷️ Field Title:', fieldTitle);
+  console.log('📋 Custom Instructions:', customInstructions || 'None');
   
   try {
     await initializeServices();
     
-    // Search the knowledge base first
+    // Search the knowledge base first (without custom instructions)
     const similarChunks = await fileService.searchSimilarContent(query, 3);
     
     if (similarChunks.length === 0) {
       console.log('📭 No relevant content found in knowledge base, attempting Gemini fallback');
       
-      // Use Gemini as fallback to generate intelligent suggestions
+      // Use Gemini as fallback to generate intelligent suggestions (WITH custom instructions)
       try {
-        const geminiSuggestion = await generateGeminiSuggestion(query, fieldType, fieldTitle);
+        const geminiSuggestion = await generateGeminiSuggestion(query, fieldType, fieldTitle, customInstructions);
         
         if (geminiSuggestion && geminiSuggestion.trim().length > 0) {
           console.log('🤖 Gemini generated suggestion:', geminiSuggestion);
@@ -155,6 +229,16 @@ async function handleKnowledgeSearch(query, fieldType, fieldTitle, tabId) {
     
   } catch (error) {
     console.error('❌ Error handling knowledge search:', error);
+    
+    // Check if error is due to missing API key
+    if (error.message.includes('No API key configured')) {
+      return { 
+        success: false, 
+        error: 'Please configure your Gemini API key in extension settings before searching.',
+        suggestions: [] 
+      };
+    }
+    
     // Return empty suggestions so content script can handle fallback
     return { success: true, suggestions: [] };
   } finally {
@@ -162,13 +246,14 @@ async function handleKnowledgeSearch(query, fieldType, fieldTitle, tabId) {
   }
 }
 
-async function generateGeminiSuggestion(query, fieldType, fieldTitle) {
+async function generateGeminiSuggestion(query, fieldType, fieldTitle, customInstructions = '') {
   console.group('🤖 Generating Gemini suggestion');
   console.log('📝 Field details:', { query, fieldType, fieldTitle });
+  console.log('📋 Custom instructions:', customInstructions || 'None');
   
   try {
-    // Create an intelligent prompt based on field context
-    const prompt = createGeminiPrompt(query, fieldType, fieldTitle);
+    // Create an intelligent prompt based on field context and custom instructions
+    const prompt = createGeminiPrompt(query, fieldType, fieldTitle, customInstructions);
     console.log('💭 Prompt created, length:', prompt.length);
     console.log('💭 Prompt preview:', prompt.substring(0, 300) + '...');
     
@@ -193,7 +278,7 @@ async function generateGeminiSuggestion(query, fieldType, fieldTitle) {
   }
 }
 
-function createGeminiPrompt(query, fieldType, fieldTitle) {
+function createGeminiPrompt(query, fieldType, fieldTitle, customInstructions = '') {
   const basePrompt = `You are an intelligent form filling assistant. Based on the field context provided, generate an appropriate value for this form field.
 
 Field Information:
@@ -208,80 +293,101 @@ Instructions:
 4. Return ONLY the value itself, without explanations or formatting
 5. Ensure the value matches the expected format for a ${fieldType} field`;
 
+  // Add custom instructions if provided
+  let customInstructionSection = '';
+  if (customInstructions && customInstructions.trim()) {
+    customInstructionSection = `
+
+IMPORTANT - Custom User Instructions:
+${customInstructions}
+
+Please follow these custom instructions when generating the field value. They take priority over the default instructions above.`;
+  }
+
   // Add field-specific guidance
+  let fieldSpecificGuidance = '';
   switch (fieldType?.toLowerCase()) {
     case 'email':
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate a professional email address (e.g., firstname.lastname@company.com)
 7. Use common domain names like gmail.com, company.com, or organization names
 8. Ensure proper email format with @ symbol and valid domain`;
+      break;
 
     case 'tel':
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate a phone number in standard format (e.g., +1-555-123-4567)
 7. Include country code if appropriate
 8. Use realistic area codes and number patterns`;
+      break;
 
     case 'url':
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate a complete URL starting with https://
 7. Use professional website formats (e.g., https://www.company.com)
 8. Make it relevant to the field context if possible`;
+      break;
 
     case 'date':
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate a date in YYYY-MM-DD format
 7. Use a reasonable date (not too far in past or future)
 8. Consider if this might be a birth date, start date, or other specific date type`;
+      break;
 
     case 'number':
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate a realistic number appropriate for the context
 7. Consider if this might be age, salary, quantity, etc.
 8. Use whole numbers unless decimals are clearly needed`;
+      break;
 
     case 'text':
     case 'textarea':
       if (fieldTitle?.toLowerCase().includes('name')) {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate a professional full name (First Last format)
 7. Use common, professional-sounding names
 8. Avoid unusual characters or formatting`;
       } else if (fieldTitle?.toLowerCase().includes('address')) {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate a complete address with street, city, state, and ZIP
 7. Use realistic street names and locations
 8. Format as: Street Address, City, State ZIP`;
       } else if (fieldTitle?.toLowerCase().includes('company')) {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate a professional company name
 7. Use realistic business naming conventions
 8. Consider industry-appropriate names`;
       } else if (fieldTitle?.toLowerCase().includes('cover letter') || fieldTitle?.toLowerCase().includes('resume')) {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate a brief, professional summary or cover letter excerpt
 7. Keep it concise but meaningful (2-3 sentences)
 8. Make it relevant to a job application context
 9. Example: "Experienced professional with 5+ years in the field. Strong background in project management and team leadership. Seeking opportunities to contribute to innovative projects."`;
       } else if (fieldTitle?.toLowerCase().includes('description') || fieldTitle?.toLowerCase().includes('summary')) {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate a brief, professional description (2-3 sentences)
 7. Keep it concise and relevant to the context
 8. Make it sound professional and meaningful`;
       } else {
-        return basePrompt + `
+        fieldSpecificGuidance = `
 6. Generate appropriate text content based on the field title
 7. Keep it concise and professional
 8. Match the expected content type for this field
 9. For longer text fields, provide meaningful content (2-3 sentences)`;
       }
+      break;
 
     default:
-      return basePrompt + `
+      fieldSpecificGuidance = `
 6. Generate content appropriate for the field context
 7. Keep it simple and professional
 8. Match common expectations for this type of field`;
+      break;
   }
+
+  return basePrompt + customInstructionSection + fieldSpecificGuidance;
 }
 
 async function processKnowledgeResults(chunks, fieldType, fieldTitle) {

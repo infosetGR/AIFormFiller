@@ -19,12 +19,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     case 'fillForm':
       console.log('🤖 Starting form fill process...');
+      console.log('📝 Custom instructions:', request.customInstructions || 'None');
       showWorkingIndicator('Filling forms...');
       
       // Start monitoring form submissions when user wants to fill forms
       monitorFormSubmissions();
       
-      fillFormsOnPage().then(success => {
+      fillFormsOnPage(request.customInstructions).then(success => {
         hideWorkingIndicator();
         sendResponse({ success, message: success ? 'Forms filled successfully' : 'Failed to fill forms' });
       });
@@ -546,10 +547,15 @@ function getRelevantAttributes(element) {
   return attributes;
 }
 
-async function fillFormsOnPage() {
+async function fillFormsOnPage(customInstructions = '') {
   console.group('🤖 Form Filling Process');
   
   try {
+    // Log custom instructions if provided
+    if (customInstructions && customInstructions.trim()) {
+      console.log('📝 Using custom instructions:', customInstructions);
+    }
+    
     // Get knowledge base stats first
     const libraryStats = await getKnowledgeBaseStats();
     console.log(`📚 Knowledge Library Status: ${libraryStats.filesCount} files, ${libraryStats.chunksCount} chunks`);
@@ -598,7 +604,7 @@ async function fillFormsOnPage() {
       try {
         // Get intelligent suggestion from knowledge base
         const fieldTitle = fieldInfo.title.text;
-        const suggestion = await getIntelligentSuggestion(fieldInfo);
+        const suggestion = await getIntelligentSuggestion(fieldInfo, customInstructions);
 
         await fillField(fieldInfo, suggestion);
         
@@ -632,7 +638,7 @@ async function fillFormsOnPage() {
   }
 }
 
-async function getIntelligentSuggestion(fieldInfo) {
+async function getIntelligentSuggestion(fieldInfo, customInstructions = '') {
   console.group(`🧠 Getting intelligent suggestion for: ${fieldInfo.title?.text}`);
   
   try {
@@ -646,7 +652,8 @@ async function getIntelligentSuggestion(fieldInfo) {
         action: 'searchKnowledge',
         query: searchQuery,
         fieldType: fieldInfo.type,
-        fieldTitle: fieldInfo.title?.text
+        fieldTitle: fieldInfo.title?.text,
+        customInstructions: customInstructions
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('❌ Runtime error:', chrome.runtime.lastError);
