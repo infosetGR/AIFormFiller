@@ -14,6 +14,9 @@ Please record a 3–5 minute walkthrough showing:
 
 https://your.video.link.here
 
+also: https://www.veed.io/view/2e9851e3-9ff8-44d6-8f9e-8d825289ac97?panel=share
+
+
 PLEASE DO NOT UPLOAD RAW VIDOE FILES. These submissions will not be reviewed.
 
 ### Timestamps

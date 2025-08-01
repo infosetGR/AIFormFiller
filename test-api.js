@@ -1,7 +1,7 @@
 // Simple test to validate the Google Generative AI Embedding API
 // This is for debugging purposes only
 
-const API_KEY = 'YOUR_API_KEY_HERE';
+const API_KEY = '';
 const EMBEDDING_API_URL = 'https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent';
 
 async function testEmbeddingAPI() {

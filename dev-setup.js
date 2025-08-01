@@ -3,7 +3,7 @@
 
 async function setupDevApiKey() {
   // Read API key from environment or use fallback
-  const API_KEY = 'YOUR_API_KEY_HERE'; // From your .env file
+  const API_KEY = ''; // From your .env file
   
   try {
     // Check if API key is already set
