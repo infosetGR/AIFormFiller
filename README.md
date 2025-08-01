@@ -138,13 +138,29 @@ const API_KEY = 'your-google-ai-api-key-here';
 - **Embeddings**: Embedding Agent manages vector storage and retrieval
 - **File Metadata**: File Processing Agent handles document relationships and timestamps
 
-## 🛡️ Agent Security & Privacy
+## 🛡️ Security & Privacy
 
-- **Local Data Processing**: All agents process data locally in Chrome's secure storage environment
-- **Minimal External Communication**: Only Gemini and Embedding agents communicate with Google APIs for AI processing
-- **Agent Isolation**: Each agent operates within defined security boundaries
-- **User Control**: File Processing Agent allows complete control over uploaded documents with easy deletion
-- **Secure API Integration**: Embedding and Gemini agents use secure, authenticated connections to Google's AI services
+### API Key Security
+- **⚠️ IMPORTANT**: Never commit API keys to version control
+- Use the `.env.example` file as a template for your local `.env` file
+- Store API keys securely using the extension's settings UI
+- API keys are stored locally in Chrome's secure storage, never transmitted except to Google's official APIs
+
+### Data Privacy
+- **Local Data Processing**: All personal data is processed locally in Chrome's secure storage environment
+- **Minimal External Communication**: Only necessary API calls to Google's official Generative AI services
+- **User Control**: Complete control over uploaded documents with easy deletion via Clear Library feature
+- **No Data Collection**: This extension does not collect, store, or transmit personal data to any third parties
+
+### Agent Security
+- **Agent Isolation**: Each agent operates within defined security boundaries and Chrome's permission model
+- **Secure API Integration**: All agents use authenticated connections to Google's AI services
+- **Permission-Based Access**: Extension only accesses data as explicitly permitted by Chrome's security model
+
+### Development Security
+- **Environment Variables**: Use `.env` files for development (already in `.gitignore`)
+- **API Key Rotation**: Regularly rotate your Google AI API keys
+- **Testing**: Use provided test files with dummy data for development
 
 ## 📁 Multi-Agent Project Structure
 
