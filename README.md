@@ -3,6 +3,8 @@
 This project was developed for ODSC & Google Cloud Agentic AI Hackathon 2025: 
 https://odsc.com/boston/hackathon/
 
+[![Watch the video](https://img.shields.io/badge/🎬-Video%20Presentation-blue)](http://tiny.cc/infoset)http://tiny.cc/infoset
+
 An intelligent Chrome extension powered by a **multi-agent architecture** that automatically analyzes and fills web forms using AI-powered field recognition and a knowledge base built from your uploaded documents.
 
 ## 🤖 Multi-Agent Architecture
